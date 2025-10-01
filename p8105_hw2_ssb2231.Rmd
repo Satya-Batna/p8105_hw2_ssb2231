@@ -5,4 +5,11 @@ author: "Satya Batna"
 date: "2025-09-30"
 output: github_document
 ---
+library(tidyverse)
+
+# Problem 1: Uploading all the sets of data 
+pols_month <- read_csv("C:/Users/satya/OneDrive/Desktop/pols-month.csv")
+
+View(pols_month)
+
 
