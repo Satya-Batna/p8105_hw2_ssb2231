@@ -3,10 +3,11 @@ title: "P8105_hw2_sbb2231"
 author: "Satya Batna (sbb2231)"
 output: github_document
 ---
+#Problem 2
 ```{r}
+library (tidyverse)
 library(readxl)
 library(dplyr)
-library (tidyverse)
 
 # --- Read & clean each sheet (omit notes by dropping rows with missing Dumpster) ---
 
@@ -99,7 +100,98 @@ gwynnda_cigs <- trash_wheel_data %>%
 
 ```
 
-The combined Trash Wheel dataset contains `r n_obs` observations across the three wheels.  
+The combined Trash Wheel dataset contains `r n_obs` observations across the three wheels.
 The Professor Trash Wheel collected a total of `r round(prof_weight, 1)` tons of trash.  
 In June 2022, Gwynnda collected `r gwynnda_cigs` cigarette butts.
+
+
+#Problem 3
+```{r}
+knitr::opts_chunk$set(warning = FALSE)
+
+library(tidyverse)
+library(lubridate)
+
+# ---- Load datasets ----
+zori <- read_csv("C:/Users/satya/Downloads/Zip_zori_uc_sfrcondomfr_sm_month_NYC.csv")
+zip_lookup <- read_csv("C:/Users/satya/Downloads/Zip Codes.csv")
+
+# ---- Clean ZIP lookup ----
+zip_lookup <- zip_lookup %>%
+  transmute(
+    zip = as.character(ZipCode),
+    borough = County,
+    neighborhood = Neighborhood
+  ) %>%
+  distinct()
+
+# ---- Tidy ZORI ----
+zori_tidy <- zori %>%
+  transmute(
+    zip = as.character(RegionName),
+    county = CountyName,
+    across(matches("^\\d{4}-\\d{2}-\\d{2}$"))
+  ) %>%
+  pivot_longer(
+    cols = matches("^\\d{4}-\\d{2}-\\d{2}$"),
+    names_to = "date",
+    values_to = "zori"
+  ) %>%
+  mutate(date = ymd(date),
+         year = year(date),
+         month = month(date, label = TRUE, abbr = FALSE))
+
+# ---- Merge ----
+zori_final <- zori_tidy %>%
+  left_join(zip_lookup, by = "zip") %>%
+  relocate(zip, borough, neighborhood, date, year, month, zori)
+
+# ---- Summary numbers ----
+n_obs <- nrow(zori_final)
+n_zip <- n_distinct(zori_final$zip)
+n_neigh <- n_distinct(zori_final$neighborhood, na.rm = TRUE)
+
+# ---- ZIPs missing from Zillow ----
+zips_missing <- zip_lookup %>%
+  anti_join(zori_tidy %>% distinct(zip), by = "zip")
+
+# Jan 2020 rents
+jan2020 <- zori_final %>%
+  filter(date == ymd("2020-01-31")) %>%
+  distinct(zip, borough, .keep_all = TRUE) %>%
+  select(zip, borough, neighborhood, zori_2020 = zori)
+
+# Jan 2021 rents
+jan2021 <- zori_final %>%
+  filter(date == ymd("2021-01-31")) %>%
+  distinct(zip, borough, .keep_all = TRUE) %>%
+  select(zip, zori_2021 = zori)
+
+# Calculate changes
+drops <- jan2020 %>%
+  inner_join(jan2021, by = "zip") %>%
+  mutate(change = zori_2021 - zori_2020) %>%
+  arrange(change)
+
+# Top 10 ZIPs with largest drop
+top10_drops <- drops %>% 
+  slice_head(n = 10)
+
+# View result table
+knitr::kable(top10_drops, digits = 0)
+
+
+```
+
+
+Our tidy dataset contains `r n_obs` total observations, covering `r n_zip` unique ZIP codes 
+and `r n_neigh` neighborhoods across the boroughs. 
+
+There are `r n_zip` ZIP codes in the lookup file that do not appear in Zillow’s dataset.  
+For example: `r paste(head(zips_missing$zip, 5), collapse = ", ")`.  
+
+The 10 ZIP codes with the largest rent declines between Jan 2020 and Jan 2021 are shown above in Lower Manhattan. 
+
+
+
 
