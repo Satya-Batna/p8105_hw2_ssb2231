@@ -9,9 +9,8 @@ library (tidyverse)
 library(readxl)
 library(dplyr)
 
-# --- Read & clean each sheet (omit notes by dropping rows with missing Dumpster) ---
-
-# Mr. Trash Wheel  (all rows; columns A:N)
+# Data Cleaning
+# Mr. Trash Wheel 
 mr_trash <- read_excel(
   "C:/Users/satya/Downloads/202509 Trash Wheel Collection Data.xlsx",
   sheet = "Mr. Trash Wheel",
@@ -24,7 +23,7 @@ mr_trash <- read_excel(
     wheel        = "Mr. Trash Wheel"
   )
 
-# Professor Trash Wheel  (all rows; columns A:M)  ← removed row limit that caused undercount
+# Professor Trash Wheel  
 prof_trash <- read_excel(
   "C:/Users/satya/Downloads/202509 Trash Wheel Collection Data.xlsx",
   sheet = "Professor Trash Wheel",
@@ -37,7 +36,7 @@ prof_trash <- read_excel(
     wheel        = "Professor Trash Wheel"
   )
 
-# Gwynns Falls Trash Wheel  (all rows; columns A:M)
+# Gwynns Falls Trash Wheel 
 gwynns_trash <- read_excel(
   "C:/Users/satya/Downloads/202509 Trash Wheel Collection Data.xlsx",
   sheet = "Gwynns Falls Trash Wheel",
@@ -50,7 +49,7 @@ gwynns_trash <- read_excel(
     wheel        = "Gwynns Falls Trash Wheel"
   )
 
-# --- Combine, coerce numeric columns just in case, drop any stray '...#' columns ---
+#calcualting the weight
 
 trash_wheel_data <- bind_rows(mr_trash, prof_trash, gwynns_trash) %>%
   select(-starts_with("...")) %>%
@@ -63,7 +62,7 @@ trash_wheel_data <- bind_rows(mr_trash, prof_trash, gwynns_trash) %>%
                   `Sports Balls`),
                 ~ suppressWarnings(as.numeric(.))))
 
-# --- Inline-ready answers ---
+# Answering the homework questions
 
 # 1) # of observations in resulting dataset
 n_obs <- nrow(trash_wheel_data)
@@ -112,11 +111,11 @@ knitr::opts_chunk$set(warning = FALSE)
 library(tidyverse)
 library(lubridate)
 
-# ---- Load datasets ----
+# Loading Datasets
 zori <- read_csv("C:/Users/satya/Downloads/Zip_zori_uc_sfrcondomfr_sm_month_NYC.csv")
 zip_lookup <- read_csv("C:/Users/satya/Downloads/Zip Codes.csv")
 
-# ---- Clean ZIP lookup ----
+# Clean ZIP lookup 
 zip_lookup <- zip_lookup %>%
   transmute(
     zip = as.character(ZipCode),
@@ -125,7 +124,7 @@ zip_lookup <- zip_lookup %>%
   ) %>%
   distinct()
 
-# ---- Tidy ZORI ----
+# Clean ZORI
 zori_tidy <- zori %>%
   transmute(
     zip = as.character(RegionName),
@@ -141,57 +140,46 @@ zori_tidy <- zori %>%
          year = year(date),
          month = month(date, label = TRUE, abbr = FALSE))
 
-# ---- Merge ----
+#Merge
 zori_final <- zori_tidy %>%
   left_join(zip_lookup, by = "zip") %>%
   relocate(zip, borough, neighborhood, date, year, month, zori)
 
-# ---- Summary numbers ----
 n_obs <- nrow(zori_final)
 n_zip <- n_distinct(zori_final$zip)
 n_neigh <- n_distinct(zori_final$neighborhood, na.rm = TRUE)
 
-# ---- ZIPs missing from Zillow ----
 zips_missing <- zip_lookup %>%
   anti_join(zori_tidy %>% distinct(zip), by = "zip")
 
-# Jan 2020 rents
 jan2020 <- zori_final %>%
   filter(date == ymd("2020-01-31")) %>%
   distinct(zip, borough, .keep_all = TRUE) %>%
   select(zip, borough, neighborhood, zori_2020 = zori)
 
-# Jan 2021 rents
 jan2021 <- zori_final %>%
   filter(date == ymd("2021-01-31")) %>%
   distinct(zip, borough, .keep_all = TRUE) %>%
   select(zip, zori_2021 = zori)
 
-# Calculate changes
 drops <- jan2020 %>%
   inner_join(jan2021, by = "zip") %>%
   mutate(change = zori_2021 - zori_2020) %>%
   arrange(change)
 
-# Top 10 ZIPs with largest drop
 top10_drops <- drops %>% 
   slice_head(n = 10)
-
-# View result table
-knitr::kable(top10_drops, digits = 0)
 
 
 ```
 
 
-Our tidy dataset contains `r n_obs` total observations, covering `r n_zip` unique ZIP codes 
-and `r n_neigh` neighborhoods across the boroughs. 
+The tidy dataset with all these zip codes contains `r n_obs` total observations, covering `r n_zip` unique ZIP codes and `r n_neigh` neighborhoods across the boroughs. 
 
 There are `r n_zip` ZIP codes in the lookup file that do not appear in Zillow’s dataset.  
 For example: `r paste(head(zips_missing$zip, 5), collapse = ", ")`.  
 
-The 10 ZIP codes with the largest rent declines between Jan 2020 and Jan 2021 are shown above in Lower Manhattan. 
-
+The 10 ZIP codes with the largest rent declines between Jan 2020 and Jan 2021 are shown above. With the highest drop being in the 10007 area of Lower Manhattan. 
 
 
 
