@@ -4,62 +4,102 @@ author: "Satya Batna (sbb2231)"
 output: github_document
 ---
 ```{r}
-library(tidyverse)
 library(readxl)
-library(janitor)
+library(dplyr)
+library (tidyverse)
 
-# Mr. Trash Wheel
-mr_trash <- read_excel("C:/Users/satya/Downloads/202509 Trash Wheel Collection Data.xlsx",
-                       sheet = "Mr. Trash Wheel",
-                       range = "A2:N535") %>%
+# --- Read & clean each sheet (omit notes by dropping rows with missing Dumpster) ---
+
+# Mr. Trash Wheel  (all rows; columns A:N)
+mr_trash <- read_excel(
+  "C:/Users/satya/Downloads/202509 Trash Wheel Collection Data.xlsx",
+  sheet = "Mr. Trash Wheel",
+  range = readxl::cell_cols("A:N")
+) %>%
   drop_na(Dumpster) %>%
   mutate(
-    Year = as.integer(Year),   # force numeric year
+    Year         = as.integer(Year),
     `Sports Balls` = as.integer(round(`Sports Balls`)),
-    wheel = "Mr. Trash Wheel"
+    wheel        = "Mr. Trash Wheel"
   )
 
-# Professor Trash Wheel
-prof_trash <- read_excel("C:/Users/satya/Downloads/202509 Trash Wheel Collection Data.xlsx",
-                         sheet = "Professor Trash Wheel",
-                         range = "A2:M110") %>%
+# Professor Trash Wheel  (all rows; columns A:M)  ← removed row limit that caused undercount
+prof_trash <- read_excel(
+  "C:/Users/satya/Downloads/202509 Trash Wheel Collection Data.xlsx",
+  sheet = "Professor Trash Wheel",
+  range = readxl::cell_cols("A:M")
+) %>%
   drop_na(Dumpster) %>%
   mutate(
-    Year = as.integer(Year),   # force numeric year
+    Year         = as.integer(Year),
     `Sports Balls` = NA_integer_,
-    wheel = "Professor Trash Wheel"
+    wheel        = "Professor Trash Wheel"
   )
 
-# Gwynns Falls Trash Wheel
-gwynns_trash <- read_excel("C:/Users/satya/Downloads/202509 Trash Wheel Collection Data.xlsx",
-                           sheet = "Gwynns Falls Trash Wheel",
-                           range = "A2:M60") %>%
+# Gwynns Falls Trash Wheel  (all rows; columns A:M)
+gwynns_trash <- read_excel(
+  "C:/Users/satya/Downloads/202509 Trash Wheel Collection Data.xlsx",
+  sheet = "Gwynns Falls Trash Wheel",
+  range = readxl::cell_cols("A:M")
+) %>%
   drop_na(Dumpster) %>%
   mutate(
-    Year = as.integer(Year),   # force numeric year
+    Year         = as.integer(Year),
     `Sports Balls` = NA_integer_,
-    wheel = "Gwynns Falls Trash Wheel"
+    wheel        = "Gwynns Falls Trash Wheel"
   )
 
-# Combine
+# --- Combine, coerce numeric columns just in case, drop any stray '...#' columns ---
+
 trash_wheel_data <- bind_rows(mr_trash, prof_trash, gwynns_trash) %>%
-  select(-any_of("...13"))
+  select(-starts_with("...")) %>%
+  mutate(across(c(`Weight (tons)`,
+                  `Plastic Bottles`,
+                  `Glass Bottles`,
+                  `Plastic Bags`,
+                  `Wrappers`,
+                  `Cigarette Butts`,
+                  `Sports Balls`),
+                ~ suppressWarnings(as.numeric(.))))
 
+# --- Inline-ready answers ---
 
-# Number of observations in the dataset
+# 1) # of observations in resulting dataset
 n_obs <- nrow(trash_wheel_data)
 
-# Total weight of trash collected by Professor Trash Wheel
+# 2) Total weight of trash collected by Professor Trash Wheel (tons)
 prof_weight <- trash_wheel_data %>%
   filter(wheel == "Professor Trash Wheel") %>%
   summarise(total_weight_tons = sum(`Weight (tons)`, na.rm = TRUE)) %>%
   pull(total_weight_tons)
 
-# Total number of cigarette butts collected by Gwynnda in June 2022
+# 3) Total number of cigarette butts collected by Gwynnda in June 2022
 gwynnda_cigs <- trash_wheel_data %>%
-  filter(wheel == "Gwynns Falls Trash Wheel", Year == 2022, Month == "June") %>%
-  summarise(total_cigs = sum(as.numeric(`Cigarette Butts`), na.rm = TRUE)) %>%
+  filter(wheel == "Gwynns Falls Trash Wheel",
+         Year == 2022,
+         tolower(Month) == "june") %>%
+  summarise(total_cigs = sum(`Cigarette Butts`, na.rm = TRUE)) %>%
   pull(total_cigs)
 ```
 
+```{r}
+n_obs <- nrow(trash_wheel_data)
+
+prof_weight <- trash_wheel_data %>%
+  filter(wheel == "Professor Trash Wheel") %>%
+  summarise(total_weight_tons = sum(`Weight (tons)`, na.rm = TRUE)) %>%
+  pull(total_weight_tons)
+
+gwynnda_cigs <- trash_wheel_data %>%
+  filter(wheel == "Gwynns Falls Trash Wheel",
+         Year == 2022,
+         Month == "June") %>%
+  summarise(total_cigs = sum(`Cigarette Butts`, na.rm = TRUE)) %>%
+  pull(total_cigs)
+
+```
+
+The combined Trash Wheel dataset contains `r n_obs` observations across the three wheels.  
+The Professor Trash Wheel collected a total of `r round(prof_weight, 1)` tons of trash.  
+In June 2022, Gwynnda collected `r gwynnda_cigs` cigarette butts.
 
